@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # 从环境变量获取 token
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv('7838707734:AAHUINQudboDg6C1y8oS1K9hy6koNucyUG4')
 
 def encrypt_html(html_content):
     """将HTML内容加密为十六进制数组"""
