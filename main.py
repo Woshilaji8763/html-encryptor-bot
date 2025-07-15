@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # 从环境变量获取 token
-BOT_TOKEN = os.getenv('7838707734:AAHUINQudboDg6C1y8oS1K9hy6koNucyUG4')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 def encrypt_html(html_content):
     """将HTML内容加密为十六进制数组"""
@@ -25,20 +25,63 @@ def generate_decryption_script(encrypted_dict, var_name=None):
     if var_name is None:
         var_name = ''.join(random.choices(string.ascii_letters, k=8))
     
+    random_id = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+    
     script = f"""<!DOCTYPE html>
 <html>
 <head>
 <title>Protected Content</title>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js'></script>
 </head>
-<body>
+<body><!--
+ * ============================================
+ * 🛡 TanMayMods HTML Encryption Script
+ * ============================================
+ *
+ * 🔐 ABOUT:
+ * ----------
+ * This script securely encodes HTML content, making it unreadable  
+ * without decoding. Protects web pages from unauthorized access  
+ * and modifications.
+ *
+ * 🚀 FEATURES:
+ * ------------
+ * ✅ Encrypts HTML into an unreadable format.
+ * ✅ Prevents direct copying and unauthorized edits.
+ * ✅ Uses strong obfuscation techniques.
+ * ✅ Protects content without affecting functionality.
+ *
+ * 🔧 DEVELOPER INFO:
+ * -------------------
+ * 🧑‍💻 Developer: @CKWinGg1330
+ * 🌐 Version: 1.0
+ *
+ * 📢 CONTACT:
+ * ------------
+ * - 🔵 Telegram: @CKWinGg1330
+ * - 🔥 Channel: @TeamCKGroup
+ *
+ * 📜 LICENSE:
+ * ------------
+ * Licensed under MIT. Modify, distribute, and use freely  
+ * with proper credit to the developer.
+ *
+ * ⚠ DISCLAIMER:
+ * --------------
+ * This script is provided "as-is" without any warranties.  
+ * The developer holds no responsibility for any misuse.
+ *
+ * 🔒 ENCRYPTION ID: [TaNMaY-ENC-{random_id}]
+ *
+ * ============================================
+-->
 <script>
-var {var_name} = {encrypted_dict};
-var decrypted_html = "";
-for (var i in {var_name}) {{
-    decrypted_html += String.fromCharCode(parseInt({var_name}[i], 16));
-}}
-document.write(decrypted_html);
+    var {var_name} = {encrypted_dict};
+    var decrypted_html = "";
+    for (var i in {var_name}) {{
+        decrypted_html += String.fromCharCode(parseInt({var_name}[i], 16));
+    }}
+    document.write(decrypted_html);
 </script>
 </body>
 </html>"""
@@ -60,7 +103,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔹 防止未授权复制和修改  
 🔹 不可破解的代码保护
 
-发送 HTML 文件给我，我会为你加密！🔒"""
+📋 使用方法：
+1. 发送 HTML 文件给我
+2. 或直接发送 HTML 代码
+3. 我会返回加密后的文件
+
+🚀 开始使用吧！"""
     
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
@@ -72,7 +120,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == 'encrypt':
         await query.edit_message_text("📁 请发送你的 HTML 文件，我会为你加密！")
     elif query.data == 'developer':
-        await query.edit_message_text("👨‍💻 开发者信息:\n\n🔵 Telegram: @CKWinGg1330\n🔥 频道: @TeamCKGroup)
+        await query.edit_message_text("👨‍💻 开发者信息:\n\n🔵 Telegram: @CKWinGg1330\n🔥 频道: @TeamCKGroup")
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理文档"""
@@ -106,7 +154,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         success_keyboard = [
             [InlineKeyboardButton("🔄 再次加密", callback_data='encrypt')],
-            [InlineKeyboardButton("📢 加入频道", url="https://t.me/your_channel")]
+            [InlineKeyboardButton("📢 加入频道", url="https://t.me/TeamCKGroup")]
         ]
         success_markup = InlineKeyboardMarkup(success_keyboard)
         
@@ -158,7 +206,7 @@ def main():
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     
-    print("🚀 Bot 启动中...")
+    print("🚀 HTML 加密 Bot 启动中...")
     application.run_polling()
 
 if __name__ == '__main__':
