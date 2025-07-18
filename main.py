@@ -17,8 +17,6 @@ BOT_TOKEN = '7838707734:AAHUINQudboDg6C1y8oS1K9hy6koNucyUG4'
 
 class DualToolBot:
     def __init__(self):
-        self.html_encrypt_count = 0
-        self.lot_calc_count = 0
         self.current_gold_price = 3335.00  # 默认金价
         
     # ======================== HTML 加密功能 ========================
@@ -149,7 +147,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🔒 HTML 加密工具", callback_data='html_encrypt')],
         [InlineKeyboardButton("💰 Lot Size 计算", callback_data='lot_calculator')],
-        [InlineKeyboardButton("📊 使用统计", callback_data='bot_stats')],
         [InlineKeyboardButton("ℹ️ 使用帮助", callback_data='help_menu')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -249,35 +246,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📊 影响范围: 手数计算、保证金、每点价值"
         )
     
-    elif query.data == 'bot_stats':
-        total_usage = bot_tools.html_encrypt_count + bot_tools.lot_calc_count
-        
-        stats_text = f"""📊 Bot 使用统计
 
-🔒 **HTML 加密**:
-• 加密次数: {bot_tools.html_encrypt_count}
-• 状态: 正常运行 ✅
-
-💰 **Lot Size 计算**:
-• 计算次数: {bot_tools.lot_calc_count}
-• 当前金价: ${bot_tools.current_gold_price:,.2f}
-• 状态: 正常运行 ✅
-
-🎯 **总统计**:
-• 总使用次数: {total_usage}
-• 运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-• 服务器状态: 在线 🟢
-
-👨‍💻 **开发者**: @CKWinGg1330
-📢 **频道**: @TeamCKGroup"""
-        
-        back_keyboard = [
-            [InlineKeyboardButton("🔙 返回主菜单", callback_data='main_menu')]
-        ]
-        back_markup = InlineKeyboardMarkup(back_keyboard)
-        
-        await query.edit_message_text(stats_text, reply_markup=back_markup)
-    
     elif query.data == 'help_menu':
         help_text = """ℹ️ 使用帮助指南
 
@@ -295,7 +264,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🎯 **快速命令**:
 • `/start` - 显示主菜单
-• `/stats` - 显示详细统计
 • `lot 数字` - 计算手数
 • `price 数字` - 设置金价
 
@@ -351,8 +319,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await processing_msg.delete()
         
-        bot_tools.html_encrypt_count += 1
-        
         success_keyboard = [
             [InlineKeyboardButton("🔒 再次加密", callback_data='html_encrypt')],
             [InlineKeyboardButton("🔙 返回主菜单", callback_data='main_menu')]
@@ -361,7 +327,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(
             f"✅ 加密成功！\n\n"
-            f"🔒 已完成第 {bot_tools.html_encrypt_count} 次加密\n"
+            f"🔒 HTML文件已加密完成\n"
             f"🛡️ 源码已安全保护\n"
             f"📊 功能保持完整",
             reply_markup=success_markup
@@ -400,9 +366,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         calculation = bot_tools.calculate_lot_size_usd(lot_size)
         
         if calculation:
-            bot_tools.lot_calc_count += 1
             
-            calc_text = f"""💰 Lot Size 计算结果 #{bot_tools.lot_calc_count}
+            calc_text = f"""💰 Lot Size 计算结果
 
 📊 **计算详情**:
 ━━━━━━━━━━━━━━━━━━━━━━━━
@@ -460,8 +425,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             await processing_msg.delete()
             
-            bot_tools.html_encrypt_count += 1
-            
             success_keyboard = [
                 [InlineKeyboardButton("🔒 再次加密", callback_data='html_encrypt')],
                 [InlineKeyboardButton("💰 计算手数", callback_data='lot_calculator')]
@@ -470,7 +433,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             await update.message.reply_text(
                 f"✅ 代码加密成功！\n\n"
-                f"🔒 已完成第 {bot_tools.html_encrypt_count} 次加密\n"
+                f"🔒 HTML代码已加密完成\n"
                 f"🛡️ 源码已安全保护",
                 reply_markup=success_markup
             )
@@ -480,33 +443,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await processing_msg.edit_text("❌ 加密失败，请重试")
         return
     
-    # 统计命令
-    if text.lower() == '/stats':
-        total_usage = bot_tools.html_encrypt_count + bot_tools.lot_calc_count
-        
-        stats_text = f"""📊 详细统计信息
 
-🔒 **HTML 加密统计**:
-• 加密次数: {bot_tools.html_encrypt_count}
-• 成功率: 100% ✅
-
-💰 **Lot Size 计算统计**:
-• 计算次数: {bot_tools.lot_calc_count}
-• 当前金价: ${bot_tools.current_gold_price:,.2f}
-• 成功率: 100% ✅
-
-🎯 **总使用统计**:
-• 总使用次数: {total_usage}
-• 运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-• 服务器状态: 在线 🟢
-
-📈 **使用分布**:
-• HTML加密: {(bot_tools.html_encrypt_count/total_usage*100):.1f}% 
-• Lot Size计算: {(bot_tools.lot_calc_count/total_usage*100):.1f}%"""
-        
-        await update.message.reply_text(stats_text)
-        return
-    
     # 关键词识别
     if any(word in text.lower() for word in ['html', '加密', '网页', 'encrypt']):
         await update.message.reply_text(
@@ -559,7 +496,7 @@ def main():
     print("🚀 双功能工具 Bot 启动中...")
     print("🔒 HTML 加密功能已就绪")
     print("💰 Lot Size 计算功能已就绪")
-    print("✅ 简洁高效，功能完整")
+    print("✅ 简洁高效，专注核心功能")
     
     application.run_polling()
 
