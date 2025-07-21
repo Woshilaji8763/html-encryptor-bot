@@ -55,6 +55,11 @@ class TripleFunctionBot:
         self.prediction_history = deque(maxlen=10)
         self.pending_predictions = {}  # 存储等待验证的预测
         
+        # 连续预测相关
+        self.is_predicting = False
+        self.active_chat_id = None
+        self.pending_prediction = None
+        
         # 测试策略功能
         self.test_periods = [
             "20250721100010805",  # Predicted Small, Actual Big
@@ -172,6 +177,112 @@ class TripleFunctionBot:
                     })
         
         return verified_results
+    
+    def format_prediction_result(self, issue, prediction, actual=None, winning_number=None):
+        """格式化预测结果显示"""
+        # 获取期号后3位
+        issue_short = issue[-3:] if len(issue) >= 3 else issue
+        
+        # 预测结果缩写
+        pred_short = prediction[0]  # B or S
+        
+        if actual is None:
+            # 只有预测，没有结果
+            return f"{issue_short} {pred_short}{pred_short}"
+        else:
+            # 有结果，判断对错
+            actual_short = actual[0]  # B or S
+            is_correct = prediction == actual
+            status = "✅✅" if is_correct else "⛔⛔"
+            
+            result = f"{issue_short} {pred_short}{pred_short}{status}{actual_short}"
+            if winning_number:
+                result += f"({winning_number})"
+            
+            return result
+    
+    def start_continuous_prediction(self, chat_id):
+        """开始连续预测"""
+        self.is_predicting = True
+        self.active_chat_id = chat_id
+        logger.info(f"开始连续预测 for chat_id: {chat_id}")
+    
+    def stop_continuous_prediction(self):
+        """停止连续预测"""
+        self.is_predicting = False
+        self.active_chat_id = None
+        self.pending_prediction = None
+        logger.info("停止连续预测")
+    
+    async def check_and_predict(self, application):
+        """检查并进行预测的主循环"""
+        if not self.is_predicting or not self.active_chat_id:
+            return
+        
+        try:
+            current_issue = self.fetch_current_issue()
+            latest_result = self.fetch_latest_result()
+            
+            if not current_issue or not latest_result:
+                return
+            
+            # 检查是否有待验证的预测
+            if self.pending_prediction and latest_result["issue"] == self.pending_prediction["issue"]:
+                # 验证预测结果
+                actual = latest_result["bigsmall"]
+                winning_number = latest_result["number"]
+                is_win = self.pending_prediction["prediction"] == actual
+                result = "WIN" if is_win else "LOSE"
+                
+                # 更新历史记录
+                self.recent_actual_results.append(actual)
+                self.recent_accuracy.append(result)
+                
+                # 格式化并发送结果
+                result_text = self.format_prediction_result(
+                    self.pending_prediction["issue"],
+                    self.pending_prediction["prediction"], 
+                    actual,
+                    winning_number
+                )
+                
+                # 发送结果
+                await application.bot.send_message(
+                    chat_id=self.active_chat_id,
+                    text=result_text
+                )
+                
+                self.pending_prediction = None
+            
+            # 生成新预测（如果没有待验证的预测）
+            if not self.pending_prediction:
+                prediction, confidence = self.predict_big_or_small(current_issue)
+                
+                self.pending_prediction = {
+                    "issue": current_issue,
+                    "prediction": prediction,
+                    "confidence": confidence,
+                    "time": datetime.now().strftime("%H:%M:%S")
+                }
+                
+                # 格式化并发送预测
+                pred_text = self.format_prediction_result(current_issue, prediction)
+                
+                await application.bot.send_message(
+                    chat_id=self.active_chat_id,
+                    text=pred_text
+                )
+        
+        except Exception as e:
+            logger.error(f"连续预测错误: {e}")
+            # 发送错误信息但不停止预测
+            try:
+                await application.bot.send_message(
+                    chat_id=self.active_chat_id,
+                    text=f"⚠️ 预测系统暂时出错，正在重试..."
+                )
+            except:
+                pass
     
     def set_gold_price(self, price):
         """设置金价"""
@@ -382,13 +493,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔥 **核心功能**:
 🔹 HTML 代码加密保护
 🔹 Lot Size 精确计算
-🔹 Big/Small 智能预测
+🔹 Big/Small 连续预测
 
 💡 **快速使用**:
 • 发送HTML代码 → 自动加密
 • 发送 `lot 0.1` → 计算金额
 • 发送 `price 3335` → 设置金价
-• 点击预测 → 获取Big/Small建议
+• 发送 `/predict` → 开始连续预测
 
 🎯 选择功能开始使用！"""
     
@@ -771,18 +882,25 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • 基于实际价格计算USD金额
 
 🎯 **Big/Small 预测系统**:
-• 点击获取预测按钮
-• 查看最新开奖结果
+• 发送 `/predict` 开始连续预测
+• 发送 `/stop` 停止连续预测
+• 实时显示: `881 BB✅✅B(7)`
 • 选择预测策略 (5种策略)
 • 测试策略表现
-• 发送 `/verify` 验证预测结果
 • ⚠️ 仅供参考，请理性使用
 
 🎯 **快速命令**:
 • `/start` - 显示主菜单
+• `/predict` - 开始连续预测
+• `/stop` - 停止预测
 • `/verify` - 验证预测结果
 • `lot 数字` - 计算手数
 • `price 数字` - 设置金价
+
+📋 **预测格式说明**:
+• `881 BB` - 期号881预测Big
+• `882 BB✅✅B(7)` - 预测Big正确,实际Big,号码7
+• `883 SS⛔⛔B(6)` - 预测Small错误,实际Big,号码6
 
 📞 **联系方式**:
 • Telegram: @CKWinGg1330
@@ -857,6 +975,68 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理文本消息"""
     text = update.message.text
+    
+    # 连续预测命令
+    if text.lower() in ['/predict', 'predict', '预测']:
+        if bot_tools.is_predicting:
+            if bot_tools.active_chat_id == update.effective_chat.id:
+                await update.message.reply_text("📊 预测系统已在运行中...\n\n发送 `/stop` 停止预测")
+            else:
+                await update.message.reply_text("⚠️ 预测系统正在其他聊天中运行\n\n请先停止后再启动")
+        else:
+            bot_tools.start_continuous_prediction(update.effective_chat.id)
+            
+            # 显示当前策略和准确率
+            win_rate = 0
+            if bot_tools.recent_accuracy:
+                wins = sum(1 for r in bot_tools.recent_accuracy if r == "WIN")
+                win_rate = wins / len(bot_tools.recent_accuracy) * 100
+            
+            await update.message.reply_text(
+                f"🚀 连续预测系统启动！\n\n"
+                f"📊 **当前设置**:\n"
+                f"• 预测策略: {bot_tools.current_strategy.upper()}\n"
+                f"• 历史准确率: {win_rate:.1f}%\n"
+                f"• 监控频率: 每5秒\n\n"
+                f"📋 **显示格式**:\n"
+                f"• `881 BB` - 期号881预测Big\n"
+                f"• `882 BB✅✅B(7)` - 预测正确\n"
+                f"• `883 SS⛔⛔B(6)` - 预测错误\n\n"
+                f"⏹️ 发送 `/stop` 停止预测"
+            )
+            
+            # 立即进行一次预测检查
+            await bot_tools.check_and_predict(context.application)
+        return
+    
+    # 停止预测命令
+    elif text.lower() in ['/stop', '/s predict', 'stop', '停止', 's predict']:
+        if bot_tools.is_predicting:
+            if bot_tools.active_chat_id == update.effective_chat.id:
+                bot_tools.stop_continuous_prediction()
+                
+                # 显示最终统计
+                if bot_tools.recent_accuracy:
+                    wins = sum(1 for r in bot_tools.recent_accuracy if r == "WIN")
+                    total = len(bot_tools.recent_accuracy)
+                    win_rate = wins / total * 100
+                    
+                    await update.message.reply_text(
+                        f"⏹️ 预测系统已停止\n\n"
+                        f"📊 **最终统计**:\n"
+                        f"• 总预测次数: {total}\n"
+                        f"• 正确次数: {wins}\n"
+                        f"• 准确率: {win_rate:.1f}%\n"
+                        f"• 使用策略: {bot_tools.current_strategy.upper()}\n\n"
+                        f"🎯 发送 `/predict` 重新开始预测"
+                    )
+                else:
+                    await update.message.reply_text("⏹️ 预测系统已停止\n\n🎯 发送 `/predict` 开始预测")
+            else:
+                await update.message.reply_text("⚠️ 您没有运行中的预测系统")
+        else:
+            await update.message.reply_text("📊 预测系统未在运行\n\n🎯 发送 `/predict` 开始预测")
+        return
     
     # 价格设置
     price_match = re.search(r'(?:price|价格)\s*(\d+\.?\d*)', text.lower())
@@ -1048,6 +1228,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 三个强大功能，满足您的需求！"
         )
 
+async def prediction_monitor(application):
+    """预测监控后台任务"""
+    while True:
+        try:
+            if bot_tools.is_predicting:
+                await bot_tools.check_and_predict(application)
+            await asyncio.sleep(5)  # 每5秒检查一次
+        except Exception as e:
+            logger.error(f"预测监控任务错误: {e}")
+            await asyncio.sleep(10)  # 出错时等待10秒再重试
+
 def main():
     """主函数"""
     if not BOT_TOKEN:
@@ -1066,10 +1257,29 @@ def main():
     print("🔒 HTML 加密功能已就绪")
     print("💰 Lot Size 计算功能已就绪")
     print("🎯 Big/Small 预测功能已就绪 (原版算法)")
+    print("📊 连续预测功能已启用")
     print("🧠 支持5种预测策略: reverse, simple, alternating, modulo, ensemble")
     print("✅ 所有功能正常运行")
     
-    application.run_polling()
+    # 创建事件循环并启动Bot和预测监控
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        # 启动预测监控任务
+        monitor_task = loop.create_task(prediction_monitor(application))
+        
+        # 启动Bot
+        print("🎯 发送 /predict 开始连续预测")
+        print("⏹️ 发送 /stop 停止预测")
+        application.run_polling(close_loop=False)
+        
+    except KeyboardInterrupt:
+        print("\n👋 正在关闭...")
+        bot_tools.stop_continuous_prediction()
+        monitor_task.cancel()
+    finally:
+        loop.close()
 
 if __name__ == '__main__':
     main()
